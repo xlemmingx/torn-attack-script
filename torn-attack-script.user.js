@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.2
+// @version      1.2.3
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -182,13 +182,30 @@
                         // Restart button placement if button exists
                         const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
                         if (existingButton) {
-                            // Remove existing button placement
-                            const oldContainer = document.querySelector('.torn-script-button-container');
-                            if (oldContainer) {
-                                oldContainer.remove();
-                            }
-                            // Re-apply button to new slot
-                            setTimeout(() => moveButtonToWeaponSlot(), 100);
+                            console.log('Repositioning existing button to new slot...');
+
+                            // Remove all existing button containers
+                            document.querySelectorAll('.torn-script-button-container').forEach(container => {
+                                container.remove();
+                            });
+
+                            // Reset button styles to original
+                            existingButton.style.position = '';
+                            existingButton.style.width = '';
+                            existingButton.style.height = '';
+                            existingButton.style.top = '';
+                            existingButton.style.left = '';
+                            existingButton.style.opacity = '';
+                            existingButton.style.background = '';
+                            existingButton.style.border = '';
+
+                            // Re-apply button to new slot immediately
+                            setTimeout(() => {
+                                console.log('Moving button to new slot now...');
+                                moveButtonToWeaponSlot();
+                            }, 50);
+                        } else {
+                            console.log('No existing button found to reposition');
                         }
 
                         return false;
