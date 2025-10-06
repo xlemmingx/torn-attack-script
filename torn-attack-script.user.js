@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.5
+// @version      1.3.0
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -22,7 +22,10 @@
         // Button styling
         buttonOpacity: 0.7,
         buttonBackground: 'rgba(255, 255, 255, 0.1)',
-        buttonBorder: '2px solid rgba(255, 255, 255, 0.3)'
+        buttonBorder: '2px solid rgba(255, 255, 255, 0.3)',
+
+        // Debug settings
+        enableDebugLogs: false
     };
 
     // Load configuration from localStorage or use defaults
@@ -34,7 +37,14 @@
     // Save configuration to localStorage
     function saveConfig() {
         localStorage.setItem('tornAttackScriptConfig', JSON.stringify(CONFIG));
-        console.log('Configuration saved:', CONFIG);
+        debugLog('Configuration saved:', CONFIG);
+    }
+
+    // Debug logging function
+    function debugLog(...args) {
+        if (CONFIG.enableDebugLogs) {
+            console.log('[Torn Attack Script]', ...args);
+        }
     }
 
     // Wait for page to fully load
@@ -45,7 +55,7 @@
     }
 
     function initializeScript() {
-        console.log('Torn Attack Script loaded');
+        debugLog('Torn Attack Script loaded');
 
         // Main enhancement functions
         addCustomUI();
@@ -84,11 +94,11 @@
     }
 
     function enhanceAttackFeatures() {
-        console.log('Attack enhancements applied');
+        debugLog('Attack enhancements applied');
 
         // Wait for Torn's content to load
         waitForElement('.content-wrapper', function() {
-            console.log('Torn content loaded, applying enhancements...');
+            debugLog('Torn content loaded, applying enhancements...');
             setupWeaponSlotSelection();
             moveButtonToWeaponSlot();
         });
@@ -99,13 +109,13 @@
         const button = existingButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
 
         if (button) {
-            console.log(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
+            debugLog(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
             moveButtonToSlot(button);
         } else {
-            console.log('Button not found, waiting for it to appear...');
+            debugLog('Button not found, waiting for it to appear...');
             // Wait for button to appear
             waitForElement('.torn-btn.btn___RxE8_.silver', function(foundButton) {
-                console.log('Button found via waitForElement, moving to slot');
+                debugLog('Button found via waitForElement, moving to slot');
                 moveButtonToSlot(foundButton);
             }, 15000);
         }
@@ -148,7 +158,7 @@
             // Add click handler to hide button after use
             button.addEventListener('click', function(event) {
                 if (!event.ctrlKey) { // Only hide on normal clicks, not Ctrl+clicks
-                    console.log('Button clicked, hiding button...');
+                    debugLog('Button clicked, hiding button...');
 
                     // Hide the button
                     buttonContainer.style.display = 'none';
@@ -160,12 +170,12 @@
 
             // Move the button
             buttonContainer.appendChild(button);
-            console.log(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
+            debugLog(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
 
             // Update UI panel
             updatePanelStatus(`✓ Button moved to ${CONFIG.targetWeaponSlot}`);
         } else {
-            console.error(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found or button missing`);
+            debugLog(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found or button missing`);
             updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
         }
     }
@@ -174,22 +184,22 @@
         // Add Ctrl+Click handlers to weapon slots for configuration
         const weaponSlots = ['weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'];
 
-        console.log('Setting up weapon slot selection...');
+        debugLog('Setting up weapon slot selection...');
 
         weaponSlots.forEach(slotId => {
             waitForElement(`#${slotId}`, function(slot) {
-                console.log(`Adding Ctrl+Click handler to ${slotId}`);
+                debugLog(`Adding Ctrl+Click handler to ${slotId}`);
 
                 // Use capture phase to catch events before other handlers
                 slot.addEventListener('click', function(event) {
-                    console.log(`Click on ${slotId}, Ctrl pressed: ${event.ctrlKey}`);
+                    debugLog(`Click on ${slotId}, Ctrl pressed: ${event.ctrlKey}`);
 
                     if (event.ctrlKey) {
                         event.preventDefault();
                         event.stopPropagation();
                         event.stopImmediatePropagation();
 
-                        console.log(`Ctrl+Click detected on ${slotId}`);
+                        debugLog(`Ctrl+Click detected on ${slotId}`);
 
                         // Update configuration
                         CONFIG.targetWeaponSlot = slotId;
@@ -197,7 +207,7 @@
 
                         // Show feedback
                         updatePanelStatus(`✓ Target set to ${slotId}`);
-                        console.log(`Target weapon slot changed to: ${slotId}`);
+                        debugLog(`Target weapon slot changed to: ${slotId}`);
 
                         // Flash the selected slot briefly
                         const originalBorder = slot.style.border;
@@ -209,7 +219,7 @@
                         // Restart button placement if button exists
                         const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
                         if (existingButton) {
-                            console.log('Repositioning existing button to new slot...');
+                            debugLog('Repositioning existing button to new slot...');
 
                             // Remove all existing button containers
                             document.querySelectorAll('.torn-script-button-container').forEach(container => {
@@ -228,11 +238,11 @@
 
                             // Re-apply button to new slot immediately
                             setTimeout(() => {
-                                console.log('Moving button to new slot now...');
+                                debugLog('Moving button to new slot now...');
                                 moveButtonToWeaponSlot(existingButton);
                             }, 50);
                         } else {
-                            console.log('No existing button found to reposition');
+                            debugLog('No existing button found to reposition');
                         }
 
                         return false;
@@ -256,7 +266,7 @@
         // - Time tracking
         // - Notification enhancements
 
-        console.log('Utility features added');
+        debugLog('Utility features added');
     }
 
     // Helper functions
