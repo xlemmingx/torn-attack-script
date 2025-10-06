@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -15,15 +15,27 @@
     'use strict';
 
     // === CONFIGURATION ===
-    const CONFIG = {
+    const DEFAULT_CONFIG = {
         // Target weapon slot: 'weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'
         targetWeaponSlot: 'weapon_main',
 
         // Button styling
-        buttonOpacity: 0.15,
-        buttonBackground: 'rgba(255, 255, 255, 0.05)',
-        buttonBorder: '1px solid rgba(255, 255, 255, 0.1)'
+        buttonOpacity: 0.4,
+        buttonBackground: 'rgba(255, 255, 255, 0.1)',
+        buttonBorder: '2px solid rgba(255, 255, 255, 0.3)'
     };
+
+    // Load configuration from localStorage or use defaults
+    const CONFIG = {
+        ...DEFAULT_CONFIG,
+        ...JSON.parse(localStorage.getItem('tornAttackScriptConfig') || '{}')
+    };
+
+    // Save configuration to localStorage
+    function saveConfig() {
+        localStorage.setItem('tornAttackScriptConfig', JSON.stringify(CONFIG));
+        console.log('Configuration saved:', CONFIG);
+    }
 
     // Wait for page to fully load
     if (document.readyState === 'loading') {
@@ -77,6 +89,7 @@
         // Wait for Torn's content to load
         waitForElement('.content-wrapper', function() {
             console.log('Torn content loaded, applying enhancements...');
+            setupWeaponSlotSelection();
             moveButtonToWeaponSlot();
         });
     }
@@ -128,6 +141,56 @@
                 updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
             }
         }, 15000); // Wait up to 15 seconds for the button to appear
+    }
+
+    function setupWeaponSlotSelection() {
+        // Add Ctrl+Click handlers to weapon slots for configuration
+        const weaponSlots = ['weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'];
+
+        weaponSlots.forEach(slotId => {
+            const slot = document.getElementById(slotId);
+            if (slot) {
+                slot.addEventListener('click', function(event) {
+                    if (event.ctrlKey) {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        // Update configuration
+                        CONFIG.targetWeaponSlot = slotId;
+                        saveConfig();
+
+                        // Show feedback
+                        updatePanelStatus(`✓ Target set to ${slotId}`);
+                        console.log(`Target weapon slot changed to: ${slotId}`);
+
+                        // Flash the selected slot briefly
+                        const originalOpacity = slot.style.opacity;
+                        slot.style.opacity = '0.5';
+                        setTimeout(() => {
+                            slot.style.opacity = originalOpacity;
+                        }, 200);
+
+                        // Restart button placement if button exists
+                        const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
+                        if (existingButton) {
+                            // Remove existing button placement
+                            const oldContainer = document.querySelector('.torn-script-button-container');
+                            if (oldContainer) {
+                                oldContainer.remove();
+                            }
+                            // Re-apply button to new slot
+                            setTimeout(() => moveButtonToWeaponSlot(), 100);
+                        }
+                    }
+                });
+
+                // Add visual indicator that slot is Ctrl+clickable
+                slot.style.cursor = 'pointer';
+                slot.title = slot.title + ' (Ctrl+Click to set as attack button target)';
+            }
+        });
+
+        updatePanelStatus(`Current target: ${CONFIG.targetWeaponSlot}`);
     }
 
     function addUtilityFeatures() {
