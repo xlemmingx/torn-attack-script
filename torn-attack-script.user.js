@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.4.0
+// @version      1.4.1
 // @description  Attack enhancements for Torn City
-// @author       You
+// @author       xlemmingx [2035104]
 // @match        https://www.torn.com/loader.php*
 // @grant        none
 // @run-at       document-end
@@ -25,7 +25,7 @@
         buttonBorder: '2px solid rgba(255, 255, 255, 0.3)',
 
         // Debug settings
-        enableDebugLogs: false
+        enableDebugLogs: true
     };
 
     // Load configuration from localStorage or use defaults
@@ -79,18 +79,16 @@
     let cachedWeaponSlots = {};
 
     function moveButtonToWeaponSlot(existingButton = null) {
-        // Use cached button or provided button
-        const button = existingButton || cachedButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
+        // Always fresh query for reliability during debugging
+        const button = existingButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
 
         if (button) {
-            cachedButton = button;
             debugLog(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
             moveButtonToSlot(button);
         } else {
             debugLog('Button not found, waiting for it to appear...');
             // Wait for button to appear
             waitForElement('.torn-btn.btn___RxE8_.silver', function(foundButton) {
-                cachedButton = foundButton;
                 debugLog('Button found via waitForElement, moving to slot');
                 moveButtonToSlot(foundButton);
             }, 15000);
@@ -98,11 +96,8 @@
     }
 
     function moveButtonToSlot(button) {
-        // Use cached weapon slot if available
-        const targetWeapon = cachedWeaponSlots[CONFIG.targetWeaponSlot] || document.getElementById(CONFIG.targetWeaponSlot);
-        if (targetWeapon) {
-            cachedWeaponSlots[CONFIG.targetWeaponSlot] = targetWeapon;
-        }
+        // Always fresh query for reliability during debugging
+        const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
         if (targetWeapon && button) {
             // Create a container for the button inside target weapon slot
             let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
@@ -188,7 +183,7 @@
                         setTimeout(() => slot.style.border = '', 300);
 
                         // Restart button placement if button exists (immediate execution)
-                        const existingButton = cachedButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
+                        const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
                         if (existingButton) {
                             debugLog('Repositioning existing button to new slot...');
 
@@ -196,10 +191,15 @@
                             const containers = document.querySelectorAll('.torn-script-button-container');
                             containers.forEach(container => container.remove());
 
-                            // Reset button styles (bulk operation)
-                            existingButton.style.cssText = existingButton.style.cssText.replace(
-                                /position:[^;]*;|width:[^;]*;|height:[^;]*;|top:[^;]*;|left:[^;]*;|opacity:[^;]*;|background:[^;]*;|border:[^;]*/g, ''
-                            );
+                            // Reset button styles (individual properties for reliability)
+                            existingButton.style.position = '';
+                            existingButton.style.width = '';
+                            existingButton.style.height = '';
+                            existingButton.style.top = '';
+                            existingButton.style.left = '';
+                            existingButton.style.opacity = '';
+                            existingButton.style.background = '';
+                            existingButton.style.border = '';
 
                             // Re-apply button to new slot immediately (no timeout)
                             debugLog('Moving button to new slot now...');
