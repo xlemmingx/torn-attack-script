@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
+// @version      1.4.0
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -57,41 +57,11 @@
     function initializeScript() {
         debugLog('Torn Attack Script loaded');
 
-        // Main enhancement functions
-        addCustomUI();
+        // Main enhancement functions - minimal for performance
         enhanceAttackFeatures();
-        addUtilityFeatures();
     }
 
-    function addCustomUI() {
-        // Create enhancement panel
-        const panel = document.createElement('div');
-        panel.id = 'torn-attack-panel';
-        panel.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 250px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            z-index: 9999;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            border: 1px solid #333;
-        `;
-
-        panel.innerHTML = `
-            <h3 style="margin: 0 0 10px 0; color: #ff6b6b;">Torn Attack Script</h3>
-            <div id="attack-content">
-                <p>✓ Script loaded successfully!</p>
-                <div id="attack-stats"></div>
-            </div>
-        `;
-
-        document.body.appendChild(panel);
-    }
+    // UI Panel removed for performance optimization
 
     function enhanceAttackFeatures() {
         debugLog('Attack enhancements applied');
@@ -104,17 +74,23 @@
         });
     }
 
+    // Cache DOM selectors for performance
+    let cachedButton = null;
+    let cachedWeaponSlots = {};
+
     function moveButtonToWeaponSlot(existingButton = null) {
-        // Use existing button if provided, otherwise search for it
-        const button = existingButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
+        // Use cached button or provided button
+        const button = existingButton || cachedButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
 
         if (button) {
+            cachedButton = button;
             debugLog(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
             moveButtonToSlot(button);
         } else {
             debugLog('Button not found, waiting for it to appear...');
             // Wait for button to appear
             waitForElement('.torn-btn.btn___RxE8_.silver', function(foundButton) {
+                cachedButton = foundButton;
                 debugLog('Button found via waitForElement, moving to slot');
                 moveButtonToSlot(foundButton);
             }, 15000);
@@ -122,7 +98,11 @@
     }
 
     function moveButtonToSlot(button) {
-        const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
+        // Use cached weapon slot if available
+        const targetWeapon = cachedWeaponSlots[CONFIG.targetWeaponSlot] || document.getElementById(CONFIG.targetWeaponSlot);
+        if (targetWeapon) {
+            cachedWeaponSlots[CONFIG.targetWeaponSlot] = targetWeapon;
+        }
         if (targetWeapon && button) {
             // Create a container for the button inside target weapon slot
             let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
@@ -163,20 +143,15 @@
                     // Hide the button
                     buttonContainer.style.display = 'none';
 
-                    // Update status
-                    updatePanelStatus('✓ Button used and hidden');
+                    // Button hidden for performance
                 }
             });
 
             // Move the button
             buttonContainer.appendChild(button);
             debugLog(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
-
-            // Update UI panel
-            updatePanelStatus(`✓ Button moved to ${CONFIG.targetWeaponSlot}`);
         } else {
             debugLog(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found or button missing`);
-            updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
         }
     }
 
@@ -205,42 +180,30 @@
                         CONFIG.targetWeaponSlot = slotId;
                         saveConfig();
 
-                        // Show feedback
-                        updatePanelStatus(`✓ Target set to ${slotId}`);
+                        // Show feedback via debug log only
                         debugLog(`Target weapon slot changed to: ${slotId}`);
 
-                        // Flash the selected slot briefly
-                        const originalBorder = slot.style.border;
+                        // Flash the selected slot briefly (optimized)
                         slot.style.border = '3px solid #ff6b6b';
-                        setTimeout(() => {
-                            slot.style.border = originalBorder;
-                        }, 500);
+                        setTimeout(() => slot.style.border = '', 300);
 
-                        // Restart button placement if button exists
-                        const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
+                        // Restart button placement if button exists (immediate execution)
+                        const existingButton = cachedButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
                         if (existingButton) {
                             debugLog('Repositioning existing button to new slot...');
 
-                            // Remove all existing button containers
-                            document.querySelectorAll('.torn-script-button-container').forEach(container => {
-                                container.remove();
-                            });
+                            // Remove all existing button containers (optimized)
+                            const containers = document.querySelectorAll('.torn-script-button-container');
+                            containers.forEach(container => container.remove());
 
-                            // Reset button styles to original
-                            existingButton.style.position = '';
-                            existingButton.style.width = '';
-                            existingButton.style.height = '';
-                            existingButton.style.top = '';
-                            existingButton.style.left = '';
-                            existingButton.style.opacity = '';
-                            existingButton.style.background = '';
-                            existingButton.style.border = '';
+                            // Reset button styles (bulk operation)
+                            existingButton.style.cssText = existingButton.style.cssText.replace(
+                                /position:[^;]*;|width:[^;]*;|height:[^;]*;|top:[^;]*;|left:[^;]*;|opacity:[^;]*;|background:[^;]*;|border:[^;]*/g, ''
+                            );
 
-                            // Re-apply button to new slot immediately
-                            setTimeout(() => {
-                                debugLog('Moving button to new slot now...');
-                                moveButtonToWeaponSlot(existingButton);
-                            }, 50);
+                            // Re-apply button to new slot immediately (no timeout)
+                            debugLog('Moving button to new slot now...');
+                            moveButtonToWeaponSlot(existingButton);
                         } else {
                             debugLog('No existing button found to reposition');
                         }
@@ -256,18 +219,10 @@
             });
         });
 
-        updatePanelStatus(`Current target: ${CONFIG.targetWeaponSlot}`);
+        debugLog(`Current target: ${CONFIG.targetWeaponSlot}`);
     }
 
-    function addUtilityFeatures() {
-        // Add utility features like:
-        // - Quick navigation
-        // - Information displays
-        // - Time tracking
-        // - Notification enhancements
-
-        debugLog('Utility features added');
-    }
+    // Utility features removed for performance optimization
 
     // Helper functions
     function waitForElement(selector, callback, timeout = 10000) {
@@ -300,14 +255,6 @@
         };
     }
 
-    function updatePanelStatus(message) {
-        const panel = document.getElementById('attack-content');
-        if (panel) {
-            const statusDiv = panel.querySelector('#attack-stats');
-            if (statusDiv) {
-                statusDiv.innerHTML = `<p style="color: #4CAF50;">${message}</p>`;
-            }
-        }
-    }
+    // Panel status function removed for performance optimization
 
 })();
