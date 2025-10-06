@@ -80,20 +80,46 @@
                     buttonContainer.className = 'torn-script-button-container';
                     buttonContainer.style.cssText = `
                         position: absolute;
-                        top: 5px;
-                        right: 5px;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
                         z-index: 1000;
+                        pointer-events: none;
                     `;
                     weaponMain.style.position = 'relative';
                     weaponMain.appendChild(buttonContainer);
                 }
+
+                // Style the button to be transparent and cover the area
+                button.style.cssText += `
+                    opacity: 0.3;
+                    background: rgba(255, 255, 255, 0.1) !important;
+                    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+                    width: 100%;
+                    height: 100%;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    pointer-events: auto;
+                    transition: opacity 0.2s ease;
+                `;
+
+                // Add hover effect
+                button.addEventListener('mouseenter', function() {
+                    this.style.opacity = '0.6';
+                });
+
+                button.addEventListener('mouseleave', function() {
+                    this.style.opacity = '0.3';
+                });
 
                 // Move the button
                 buttonContainer.appendChild(button);
                 console.log('Button moved to weapon_main successfully');
 
                 // Update UI panel
-                updatePanelStatus('✓ Button moved to weapon_main');
+                updatePanelStatus('✓ Button moved and styled');
             }
         }, 15000); // Wait up to 15 seconds for the button to appear
     }
