@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.0.3
+// @version      1.1.0
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -13,6 +13,17 @@
 
 (function() {
     'use strict';
+
+    // === CONFIGURATION ===
+    const CONFIG = {
+        // Target weapon slot: 'weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'
+        targetWeaponSlot: 'weapon_main',
+
+        // Button styling
+        buttonOpacity: 0.15,
+        buttonBackground: 'rgba(255, 255, 255, 0.05)',
+        buttonBorder: '1px solid rgba(255, 255, 255, 0.1)'
+    };
 
     // Wait for page to fully load
     if (document.readyState === 'loading') {
@@ -66,17 +77,17 @@
         // Wait for Torn's content to load
         waitForElement('.content-wrapper', function() {
             console.log('Torn content loaded, applying enhancements...');
-            moveButtonToWeaponMain();
+            moveButtonToWeaponSlot();
         });
     }
 
-    function moveButtonToWeaponMain() {
-        // Find button with specific classes and move to weapon_main
+    function moveButtonToWeaponSlot() {
+        // Find button with specific classes and move to configured weapon slot
         waitForElement('.torn-btn.btn___RxE8_.silver', function(button) {
-            const weaponMain = document.getElementById('weapon_main');
-            if (weaponMain && button) {
-                // Create a container for the button inside weapon_main
-                let buttonContainer = weaponMain.querySelector('.torn-script-button-container');
+            const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
+            if (targetWeapon && button) {
+                // Create a container for the button inside target weapon slot
+                let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
                 if (!buttonContainer) {
                     buttonContainer = document.createElement('div');
                     buttonContainer.className = 'torn-script-button-container';
@@ -89,15 +100,15 @@
                         z-index: 1000;
                         pointer-events: none;
                     `;
-                    weaponMain.style.position = 'relative';
-                    weaponMain.appendChild(buttonContainer);
+                    targetWeapon.style.position = 'relative';
+                    targetWeapon.appendChild(buttonContainer);
                 }
 
-                // Style the button to be transparent and cover the area
+                // Style the button using config values
                 button.style.cssText += `
-                    opacity: 0.15;
-                    background: rgba(255, 255, 255, 0.05) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    opacity: ${CONFIG.buttonOpacity};
+                    background: ${CONFIG.buttonBackground} !important;
+                    border: ${CONFIG.buttonBorder} !important;
                     width: 100%;
                     height: 100%;
                     position: absolute;
@@ -108,10 +119,13 @@
 
                 // Move the button
                 buttonContainer.appendChild(button);
-                console.log('Button moved to weapon_main successfully');
+                console.log(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
 
                 // Update UI panel
-                updatePanelStatus('✓ Button moved and styled');
+                updatePanelStatus(`✓ Button moved to ${CONFIG.targetWeaponSlot}`);
+            } else {
+                console.error(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found`);
+                updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
             }
         }, 15000); // Wait up to 15 seconds for the button to appear
     }
