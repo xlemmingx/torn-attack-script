@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
 // @grant        none
 // @run-at       document-end
-// @updateURL    https://github.com/xlemmingx/torn-attack-script/raw/master/torn-attack-script.user.js
-// @downloadURL  https://github.com/xlemmingx/torn-attack-script/raw/master/torn-attack-script.user.js
+// @updateURL    https://github.com/xlemmingx/torn-attack-script/raw/main/torn-attack-script.user.js
+// @downloadURL  https://github.com/xlemmingx/torn-attack-script/raw/main/torn-attack-script.user.js
 // ==/UserScript==
 
 (function() {
