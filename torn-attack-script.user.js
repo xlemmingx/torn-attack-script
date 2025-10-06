@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.4.3
+// @version      1.5.0
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/loader.php*
@@ -25,7 +25,7 @@
         buttonBorder: '2px solid rgba(255, 255, 255, 0.3)',
 
         // Debug settings
-        enableDebugLogs: true
+        enableDebugLogs: false
     };
 
     // Load configuration from localStorage or use defaults
