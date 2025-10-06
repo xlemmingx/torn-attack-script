@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -147,13 +147,22 @@
         // Add Ctrl+Click handlers to weapon slots for configuration
         const weaponSlots = ['weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'];
 
+        console.log('Setting up weapon slot selection...');
+
         weaponSlots.forEach(slotId => {
-            const slot = document.getElementById(slotId);
-            if (slot) {
+            waitForElement(`#${slotId}`, function(slot) {
+                console.log(`Adding Ctrl+Click handler to ${slotId}`);
+
+                // Use capture phase to catch events before other handlers
                 slot.addEventListener('click', function(event) {
+                    console.log(`Click on ${slotId}, Ctrl pressed: ${event.ctrlKey}`);
+
                     if (event.ctrlKey) {
                         event.preventDefault();
                         event.stopPropagation();
+                        event.stopImmediatePropagation();
+
+                        console.log(`Ctrl+Click detected on ${slotId}`);
 
                         // Update configuration
                         CONFIG.targetWeaponSlot = slotId;
@@ -164,11 +173,11 @@
                         console.log(`Target weapon slot changed to: ${slotId}`);
 
                         // Flash the selected slot briefly
-                        const originalOpacity = slot.style.opacity;
-                        slot.style.opacity = '0.5';
+                        const originalBorder = slot.style.border;
+                        slot.style.border = '3px solid #ff6b6b';
                         setTimeout(() => {
-                            slot.style.opacity = originalOpacity;
-                        }, 200);
+                            slot.style.border = originalBorder;
+                        }, 500);
 
                         // Restart button placement if button exists
                         const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
@@ -181,13 +190,16 @@
                             // Re-apply button to new slot
                             setTimeout(() => moveButtonToWeaponSlot(), 100);
                         }
+
+                        return false;
                     }
-                });
+                }, true); // Use capture phase
 
                 // Add visual indicator that slot is Ctrl+clickable
                 slot.style.cursor = 'pointer';
-                slot.title = slot.title + ' (Ctrl+Click to set as attack button target)';
-            }
+                const currentTitle = slot.getAttribute('title') || '';
+                slot.setAttribute('title', currentTitle + ' (Ctrl+Click to set as attack button target)');
+            });
         });
 
         updatePanelStatus(`Current target: ${CONFIG.targetWeaponSlot}`);
