@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -95,26 +95,16 @@
 
                 // Style the button to be transparent and cover the area
                 button.style.cssText += `
-                    opacity: 0.3;
-                    background: rgba(255, 255, 255, 0.1) !important;
-                    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+                    opacity: 0.15;
+                    background: rgba(255, 255, 255, 0.05) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
                     width: 100%;
                     height: 100%;
                     position: absolute;
                     top: 0;
                     left: 0;
                     pointer-events: auto;
-                    transition: opacity 0.2s ease;
                 `;
-
-                // Add hover effect
-                button.addEventListener('mouseenter', function() {
-                    this.style.opacity = '0.6';
-                });
-
-                button.addEventListener('mouseleave', function() {
-                    this.style.opacity = '0.3';
-                });
 
                 // Move the button
                 buttonContainer.appendChild(button);
