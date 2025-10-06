@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
+// @version      1.4.2
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/loader.php*
@@ -254,7 +254,5 @@
             userName: window.userName || null
         };
     }
-
-    // Panel status function removed for performance optimization
 
 })();
