@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.3
+// @version      1.2.4
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -20,7 +20,7 @@
         targetWeaponSlot: 'weapon_main',
 
         // Button styling
-        buttonOpacity: 0.4,
+        buttonOpacity: 0.7,
         buttonBackground: 'rgba(255, 255, 255, 0.1)',
         buttonBorder: '2px solid rgba(255, 255, 255, 0.3)'
     };
@@ -94,53 +94,67 @@
         });
     }
 
-    function moveButtonToWeaponSlot() {
-        // Find button with specific classes and move to configured weapon slot
-        waitForElement('.torn-btn.btn___RxE8_.silver', function(button) {
-            const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
-            if (targetWeapon && button) {
-                // Create a container for the button inside target weapon slot
-                let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
-                if (!buttonContainer) {
-                    buttonContainer = document.createElement('div');
-                    buttonContainer.className = 'torn-script-button-container';
-                    buttonContainer.style.cssText = `
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        z-index: 1000;
-                        pointer-events: none;
-                    `;
-                    targetWeapon.style.position = 'relative';
-                    targetWeapon.appendChild(buttonContainer);
-                }
+    function moveButtonToWeaponSlot(existingButton = null) {
+        // Use existing button if provided, otherwise search for it
+        const button = existingButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
 
-                // Style the button using config values
-                button.style.cssText += `
-                    opacity: ${CONFIG.buttonOpacity};
-                    background: ${CONFIG.buttonBackground} !important;
-                    border: ${CONFIG.buttonBorder} !important;
-                    width: 100%;
-                    height: 100%;
+        if (button) {
+            console.log(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
+            moveButtonToSlot(button);
+        } else {
+            console.log('Button not found, waiting for it to appear...');
+            // Wait for button to appear
+            waitForElement('.torn-btn.btn___RxE8_.silver', function(foundButton) {
+                console.log('Button found via waitForElement, moving to slot');
+                moveButtonToSlot(foundButton);
+            }, 15000);
+        }
+    }
+
+    function moveButtonToSlot(button) {
+        const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
+        if (targetWeapon && button) {
+            // Create a container for the button inside target weapon slot
+            let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
+            if (!buttonContainer) {
+                buttonContainer = document.createElement('div');
+                buttonContainer.className = 'torn-script-button-container';
+                buttonContainer.style.cssText = `
                     position: absolute;
                     top: 0;
                     left: 0;
-                    pointer-events: auto;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 1000;
+                    pointer-events: none;
                 `;
-
-                // Move the button
-                buttonContainer.appendChild(button);
-                console.log(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
-
-                // Update UI panel
-                updatePanelStatus(`✓ Button moved to ${CONFIG.targetWeaponSlot}`);
-            } else {
-                console.error(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found`);
-                updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
+                targetWeapon.style.position = 'relative';
+                targetWeapon.appendChild(buttonContainer);
             }
-        }, 15000); // Wait up to 15 seconds for the button to appear
+
+            // Style the button using config values
+            button.style.cssText += `
+                opacity: ${CONFIG.buttonOpacity};
+                background: ${CONFIG.buttonBackground} !important;
+                border: ${CONFIG.buttonBorder} !important;
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                pointer-events: auto;
+            `;
+
+            // Move the button
+            buttonContainer.appendChild(button);
+            console.log(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
+
+            // Update UI panel
+            updatePanelStatus(`✓ Button moved to ${CONFIG.targetWeaponSlot}`);
+        } else {
+            console.error(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found or button missing`);
+            updatePanelStatus(`✗ Error: ${CONFIG.targetWeaponSlot} not found`);
+        }
     }
 
     function setupWeaponSlotSelection() {
@@ -202,7 +216,7 @@
                             // Re-apply button to new slot immediately
                             setTimeout(() => {
                                 console.log('Moving button to new slot now...');
-                                moveButtonToWeaponSlot();
+                                moveButtonToWeaponSlot(existingButton);
                             }, 50);
                         } else {
                             console.log('No existing button found to reposition');
