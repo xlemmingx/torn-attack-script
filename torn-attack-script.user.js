@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.2.4
+// @version      1.2.5
 // @description  Attack enhancements for Torn City
 // @author       You
 // @match        https://www.torn.com/loader.php*
@@ -144,6 +144,19 @@
                 left: 0;
                 pointer-events: auto;
             `;
+
+            // Add click handler to hide button after use
+            button.addEventListener('click', function(event) {
+                if (!event.ctrlKey) { // Only hide on normal clicks, not Ctrl+clicks
+                    console.log('Button clicked, hiding button...');
+
+                    // Hide the button
+                    buttonContainer.style.display = 'none';
+
+                    // Update status
+                    updatePanelStatus('✓ Button used and hidden');
+                }
+            });
 
             // Move the button
             buttonContainer.appendChild(button);
