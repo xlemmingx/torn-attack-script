@@ -20,7 +20,7 @@
         targetWeaponSlot: 'weapon_main',
 
         // Button styling
-        buttonOpacity: 0.7,
+        buttonOpacity: 0.9,
         buttonBackground: 'rgba(255, 255, 255, 0.1)',
         buttonBorder: '2px solid rgba(255, 255, 255, 0.3)',
 
