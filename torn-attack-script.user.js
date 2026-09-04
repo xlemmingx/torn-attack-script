@@ -5,6 +5,7 @@
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/loader.php*
+// @match        https://www.torn.com/page.php?sid=attack*
 // @grant        none
 // @run-at       document-end
 // @updateURL    https://github.com/xlemmingx/torn-attack-script/raw/main/torn-attack-script.user.js
