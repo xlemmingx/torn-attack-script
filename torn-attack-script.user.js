@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.8.1
+// @version      1.8.2
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -152,12 +152,20 @@
         ensureOverlay();
         updateOverlayVisibility();
 
-        const container = document.querySelector('.content-wrapper') || document.body;
+        // Observe the WHOLE document: Torn renders the fight-outcome dialog as a
+        // modal portal on <body>, i.e. outside .content-wrapper. Observing only
+        // the content wrapper misses the fight-end mutation, so the overlay would
+        // never hide. rAF-throttling keeps this cheap despite the broad scope.
         const observer = new MutationObserver(scheduleUpdate);
-        observer.observe(container, { childList: true, subtree: true });
+        observer.observe(document.body, { childList: true, subtree: true });
 
         window.addEventListener('resize', scheduleUpdate);
         window.addEventListener('scroll', scheduleUpdate, true);
+
+        // Safety net: re-evaluate periodically in case a state change slips past
+        // the observer for any reason. Cheap (two querySelectorAll), off the click
+        // path, so it does not affect click latency.
+        setInterval(updateOverlayVisibility, 500);
     }
 
     function ensureOverlay() {
