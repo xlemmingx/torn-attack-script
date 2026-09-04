@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.5.3
+// @version      1.6.0
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -19,7 +19,7 @@
         // Target weapon slot: 'weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'
         targetWeaponSlot: 'weapon_main',
 
-        // Button styling
+        // Overlay button styling
         buttonOpacity: 0.9,
         buttonBackground: 'rgba(255, 255, 255, 0.1)',
         buttonBorder: '2px solid rgba(255, 255, 255, 0.3)',
@@ -33,6 +33,8 @@
         ...DEFAULT_CONFIG,
         ...JSON.parse(localStorage.getItem('tornAttackScriptConfig') || '{}')
     };
+
+    const WEAPON_SLOTS = ['weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'];
 
     // Save configuration to localStorage
     function saveConfig() {
@@ -57,174 +59,130 @@
     function initializeScript() {
         debugLog('Torn Attack Script loaded');
 
-        // Main enhancement functions - minimal for performance
-        enhanceAttackFeatures();
-    }
-
-    // UI Panel removed for performance optimization
-
-    function enhanceAttackFeatures() {
-        debugLog('Attack enhancements applied');
-
-        // Wait for Torn's content to load
+        // Wait for Torn's content to load, then wire everything up
         waitForElement('.content-wrapper', function() {
             debugLog('Torn content loaded, applying enhancements...');
             setupWeaponSlotSelection();
-            moveButtonToWeaponSlot();
+            setupSpamButton();
         });
     }
 
-    // Cache DOM selectors for performance
-    let cachedButton = null;
-    let cachedWeaponSlots = {};
+    // === SPAM BUTTON ===
+    // Keeps a single fixed overlay button where "Start fight" normally sits.
+    // Each physical click triggers exactly one game action (no auto-attacking):
+    //   - fight not started yet -> click the native Start/Join fight button
+    //   - fight running          -> click the configured weapon slot to attack
+    // This lets the user spam clicks in one spot without moving the mouse.
+    let overlayEl = null;
 
-    function moveButtonToWeaponSlot(existingButton = null) {
-        // Always fresh query for reliability during debugging
-        const button = existingButton || document.querySelector('.torn-btn.silver');
-
-        if (button) {
-            debugLog(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
-            moveButtonToSlot(button);
-        } else {
-            debugLog('Button not found, waiting for it to appear...');
-            // Wait for button to appear
-            waitForElement('.torn-btn.silver', function(foundButton) {
-                debugLog('Button found via waitForElement, moving to slot');
-                moveButtonToSlot(foundButton);
-            }, 15000);
-        }
+    function setupSpamButton() {
+        waitForElement('.torn-btn.silver', function(startBtn) {
+            debugLog('Start fight button found, creating spam overlay');
+            createOverlay(startBtn);
+        }, 15000);
     }
 
-    function moveButtonToSlot(button) {
-        // Always fresh query for reliability during debugging
-        const targetWeapon = document.getElementById(CONFIG.targetWeaponSlot);
-        if (targetWeapon && button) {
-            // Create a container for the button inside target weapon slot
-            let buttonContainer = targetWeapon.querySelector('.torn-script-button-container');
-            if (!buttonContainer) {
-                buttonContainer = document.createElement('div');
-                buttonContainer.className = 'torn-script-button-container';
-                buttonContainer.style.cssText = `
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    z-index: 1000;
-                    pointer-events: none;
-                `;
-                targetWeapon.style.position = 'relative';
-                targetWeapon.appendChild(buttonContainer);
+    // Find the native Start/Join fight button regardless of the volatile build hash
+    function findStartButton() {
+        const buttons = document.querySelectorAll('.torn-btn');
+        for (const btn of buttons) {
+            const text = (btn.textContent || '').trim().toLowerCase();
+            if (text === 'start fight' || text === 'join fight') {
+                return btn;
             }
+        }
+        // Fallback: on the attack page "silver" is unique to the start button
+        return document.querySelector('.torn-btn.silver');
+    }
 
-            // Style the button using config values
-            button.style.cssText += `
-                opacity: ${CONFIG.buttonOpacity};
-                background: ${CONFIG.buttonBackground} !important;
-                border: ${CONFIG.buttonBorder} !important;
-                width: 100%;
-                height: 100%;
-                position: absolute;
-                top: 0;
-                left: 0;
-                pointer-events: auto;
-            `;
+    function createOverlay(refEl) {
+        if (!overlayEl) {
+            overlayEl = document.createElement('div');
+            overlayEl.className = 'torn-spam-button';
+            overlayEl.title = 'Attack button (Ctrl+Click a weapon slot to choose the weapon)';
+            overlayEl.addEventListener('click', onSpamClick);
+            document.body.appendChild(overlayEl);
+        }
+        positionOverlay(refEl);
 
-            // Add click handler to hide button after use
-            button.addEventListener('click', function(event) {
-                if (!event.ctrlKey) { // Only hide on normal clicks, not Ctrl+clicks
-                    debugLog('Button clicked, hiding button...');
+        // Keep the overlay aligned while the native button is still around
+        window.addEventListener('resize', repositionOverlay);
+        window.addEventListener('scroll', repositionOverlay, true);
+    }
 
-                    // Hide the button
-                    buttonContainer.style.display = 'none';
+    function positionOverlay(refEl) {
+        const rect = refEl.getBoundingClientRect();
+        overlayEl.style.cssText = `
+            position: fixed;
+            top: ${rect.top}px;
+            left: ${rect.left}px;
+            width: ${rect.width}px;
+            height: ${rect.height}px;
+            z-index: 100000;
+            cursor: pointer;
+            opacity: ${CONFIG.buttonOpacity};
+            background: ${CONFIG.buttonBackground};
+            border: ${CONFIG.buttonBorder};
+            box-sizing: border-box;
+        `;
+    }
 
-                    // Button hidden for performance
-                }
-            });
+    function repositionOverlay() {
+        if (!overlayEl) return;
+        const startBtn = findStartButton();
+        if (startBtn) positionOverlay(startBtn);
+    }
 
-            // Move the button
-            buttonContainer.appendChild(button);
-            debugLog(`Button moved to ${CONFIG.targetWeaponSlot} successfully`);
+    function onSpamClick() {
+        // One physical click == one game action (ToS-friendly, no automation)
+        const startBtn = findStartButton();
+        if (startBtn && document.body.contains(startBtn)) {
+            debugLog('Overlay click -> Start/Join fight');
+            startBtn.click();
         } else {
-            debugLog(`Target weapon slot "${CONFIG.targetWeaponSlot}" not found or button missing`);
+            const weapon = document.getElementById(CONFIG.targetWeaponSlot);
+            if (weapon) {
+                debugLog(`Overlay click -> attack with ${CONFIG.targetWeaponSlot}`);
+                weapon.click();
+            } else {
+                debugLog(`Weapon slot "${CONFIG.targetWeaponSlot}" not found`);
+            }
         }
     }
 
+    // === WEAPON SLOT SELECTION ===
+    // Ctrl+Click a weapon slot to set it as the attack target for the overlay.
     function setupWeaponSlotSelection() {
-        // Add Ctrl+Click handlers to weapon slots for configuration
-        const weaponSlots = ['weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'];
-
         debugLog('Setting up weapon slot selection...');
 
-        weaponSlots.forEach(slotId => {
+        WEAPON_SLOTS.forEach(slotId => {
             waitForElement(`#${slotId}`, function(slot) {
                 debugLog(`Adding Ctrl+Click handler to ${slotId}`);
 
-                // Use capture phase to catch events before other handlers
                 slot.addEventListener('click', function(event) {
-                    debugLog(`Click on ${slotId}, Ctrl pressed: ${event.ctrlKey}`);
+                    if (!event.ctrlKey) return;
 
-                    if (event.ctrlKey) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        event.stopImmediatePropagation();
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
 
-                        debugLog(`Ctrl+Click detected on ${slotId}`);
+                    CONFIG.targetWeaponSlot = slotId;
+                    saveConfig();
+                    debugLog(`Target weapon slot changed to: ${slotId}`);
 
-                        // Update configuration
-                        CONFIG.targetWeaponSlot = slotId;
-                        saveConfig();
+                    // Brief visual feedback (outline avoids layout shift)
+                    slot.style.outline = '3px solid #ff6b6b';
+                    setTimeout(() => { slot.style.outline = ''; }, 300);
+                }, true); // capture phase to beat Torn's own handlers
 
-                        // Show feedback via debug log only
-                        debugLog(`Target weapon slot changed to: ${slotId}`);
-
-                        // Flash the selected slot briefly (optimized)
-                        slot.style.border = '3px solid #ff6b6b';
-                        setTimeout(() => slot.style.border = '', 300);
-
-                        // Restart button placement if button exists (immediate execution)
-                        const existingButton = document.querySelector('.torn-btn.silver');
-                        if (existingButton) {
-                            debugLog('Repositioning existing button to new slot...');
-
-                            // Remove all existing button containers (optimized)
-                            const containers = document.querySelectorAll('.torn-script-button-container');
-                            containers.forEach(container => container.remove());
-
-                            // Reset button styles (individual properties for reliability)
-                            existingButton.style.position = '';
-                            existingButton.style.width = '';
-                            existingButton.style.height = '';
-                            existingButton.style.top = '';
-                            existingButton.style.left = '';
-                            existingButton.style.opacity = '';
-                            existingButton.style.background = '';
-                            existingButton.style.border = '';
-
-                            // Re-apply button to new slot immediately (no timeout)
-                            debugLog('Moving button to new slot now...');
-                            moveButtonToWeaponSlot(existingButton);
-                        } else {
-                            debugLog('No existing button found to reposition');
-                        }
-
-                        return false;
-                    }
-                }, true); // Use capture phase
-
-                // Add visual indicator that slot is Ctrl+clickable
                 slot.style.cursor = 'pointer';
-                const currentTitle = slot.getAttribute('title') || '';
-                slot.setAttribute('title', currentTitle + ' (Ctrl+Click to set as attack button target)');
             });
         });
 
         debugLog(`Current target: ${CONFIG.targetWeaponSlot}`);
     }
 
-    // Utility features removed for performance optimization
-
-    // Helper functions
+    // === HELPERS ===
     function waitForElement(selector, callback, timeout = 10000) {
         const startTime = Date.now();
 
@@ -239,7 +197,5 @@
 
         check();
     }
-
-    // Unused functions removed for performance
 
 })();
