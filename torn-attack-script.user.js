@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.6.1
+// @version      1.7.0
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -16,8 +16,13 @@
 
     // === CONFIGURATION ===
     const DEFAULT_CONFIG = {
-        // Target weapon slot: 'weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'
+        // Main weapon slot (used for the rest of the fight):
+        // 'weapon_main', 'weapon_second', 'weapon_melee', 'weapon_temp'
         targetWeaponSlot: 'weapon_main',
+
+        // Optional opener weapon slot, fired exactly once at the start of a fight.
+        // Empty string = disabled (single-weapon mode).
+        openerWeaponSlot: '',
 
         // Overlay button styling
         buttonOpacity: 0.9,
@@ -74,6 +79,8 @@
     //   - fight running          -> click the configured weapon slot to attack
     // This lets the user spam clicks in one spot without moving the mouse.
     let overlayEl = null;
+    // Whether the opener weapon has already been fired in the current fight
+    let openerUsed = false;
 
     function setupSpamButton() {
         waitForElement('.torn-btn.silver', function(startBtn) {
@@ -142,20 +149,28 @@
         `;
     }
 
-    // Read the weapon name from the configured slot's aria-label ("Attack with X")
-    function getWeaponName() {
-        const slot = document.getElementById(CONFIG.targetWeaponSlot);
+    // Read the weapon name from a slot's aria-label ("Attack with X")
+    function getWeaponName(slotId) {
+        const slot = document.getElementById(slotId);
         const label = slot && slot.getAttribute('aria-label');
         if (label) {
             return label.replace(/^Attack with\s*/i, '').trim();
         }
         // Fallback to a readable slot name
-        return CONFIG.targetWeaponSlot.replace('weapon_', '');
+        return slotId.replace('weapon_', '');
+    }
+
+    // The weapon slot the next click will trigger (opener while it is still pending)
+    function nextWeaponSlot() {
+        if (CONFIG.openerWeaponSlot && !openerUsed) return CONFIG.openerWeaponSlot;
+        return CONFIG.targetWeaponSlot;
     }
 
     function updateOverlayLabel() {
         if (!overlayEl) return;
-        overlayEl.textContent = `⚔ ${getWeaponName()}`;
+        const slotId = nextWeaponSlot();
+        const openerPending = CONFIG.openerWeaponSlot && !openerUsed;
+        overlayEl.textContent = `⚔ ${openerPending ? '1× ' : ''}${getWeaponName(slotId)}`;
     }
 
     function repositionOverlay() {
@@ -169,15 +184,24 @@
         const startBtn = findStartButton();
         if (startBtn && document.body.contains(startBtn)) {
             debugLog('Overlay click -> Start/Join fight');
+            openerUsed = false; // new fight: arm the opener again
             startBtn.click();
-        } else {
-            const weapon = document.getElementById(CONFIG.targetWeaponSlot);
-            if (weapon) {
-                debugLog(`Overlay click -> attack with ${CONFIG.targetWeaponSlot}`);
-                weapon.click();
-            } else {
-                debugLog(`Weapon slot "${CONFIG.targetWeaponSlot}" not found`);
+            updateOverlayLabel();
+            return;
+        }
+
+        const slotId = nextWeaponSlot();
+        const weapon = document.getElementById(slotId);
+        if (weapon) {
+            debugLog(`Overlay click -> attack with ${slotId}`);
+            weapon.click();
+            // Consume the opener after its single use
+            if (CONFIG.openerWeaponSlot && !openerUsed && slotId === CONFIG.openerWeaponSlot) {
+                openerUsed = true;
+                updateOverlayLabel();
             }
+        } else {
+            debugLog(`Weapon slot "${slotId}" not found`);
         }
     }
 
@@ -191,19 +215,36 @@
                 debugLog(`Adding Ctrl+Click handler to ${slotId}`);
 
                 slot.addEventListener('click', function(event) {
-                    if (!event.ctrlKey) return;
+                    // Ctrl+Click = main weapon, Shift+Click = opener weapon (1x at start)
+                    if (!event.ctrlKey && !event.shiftKey) return;
 
                     event.preventDefault();
                     event.stopPropagation();
                     event.stopImmediatePropagation();
 
-                    CONFIG.targetWeaponSlot = slotId;
+                    let flashColor;
+                    if (event.shiftKey) {
+                        // Toggle: Shift+Click the current opener again to disable it
+                        if (CONFIG.openerWeaponSlot === slotId) {
+                            CONFIG.openerWeaponSlot = '';
+                            debugLog(`Opener weapon cleared (was ${slotId})`);
+                        } else {
+                            CONFIG.openerWeaponSlot = slotId;
+                            debugLog(`Opener weapon set to: ${slotId}`);
+                        }
+                        openerUsed = false; // re-arm so the label reflects the new opener
+                        flashColor = '#4a9bff'; // blue = opener
+                    } else {
+                        CONFIG.targetWeaponSlot = slotId;
+                        debugLog(`Main weapon set to: ${slotId}`);
+                        flashColor = '#ff6b6b'; // red = main
+                    }
+
                     saveConfig();
                     updateOverlayLabel();
-                    debugLog(`Target weapon slot changed to: ${slotId}`);
 
                     // Brief visual feedback (outline avoids layout shift)
-                    slot.style.outline = '3px solid #ff6b6b';
+                    slot.style.outline = `3px solid ${flashColor}`;
                     setTimeout(() => { slot.style.outline = ''; }, 300);
                 }, true); // capture phase to beat Torn's own handlers
 

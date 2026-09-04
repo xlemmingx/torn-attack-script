@@ -22,9 +22,11 @@ A lightweight Tampermonkey userscript for Torn City that places a single fixed a
 - Click it to start the fight, then keep clicking the same spot to attack with your configured weapon
 
 ### Configuration
-- **Ctrl+Click** on any weapon slot to set it as the new target
+- **Ctrl+Click** on a weapon slot to set the main weapon (used for the rest of the fight)
+- **Shift+Click** on a weapon slot to set an opener weapon, fired exactly once at the start of the fight (Shift+Click it again to disable)
+- The button shows the weapon the next click will trigger (`⚔ 1× Tear Gas` while the opener is pending, then `⚔ M16 A2 Rifle`)
 - Settings are automatically saved and persist across page reloads
-- Visual feedback shows which slot is selected
+- Visual feedback shows which slot is selected (red = main, blue = opener)
 
 ### Available Slots
 - **Primary Weapon** (`weapon_main`) - Default
