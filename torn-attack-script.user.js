@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -97,13 +97,15 @@
 
     function createOverlay(refEl) {
         if (!overlayEl) {
-            overlayEl = document.createElement('div');
+            overlayEl = document.createElement('button');
+            overlayEl.type = 'button';
             overlayEl.className = 'torn-spam-button';
             overlayEl.title = 'Attack button (Ctrl+Click a weapon slot to choose the weapon)';
             overlayEl.addEventListener('click', onSpamClick);
             document.body.appendChild(overlayEl);
         }
         positionOverlay(refEl);
+        updateOverlayLabel();
 
         // Keep the overlay aligned while the native button is still around
         window.addEventListener('resize', repositionOverlay);
@@ -116,15 +118,44 @@
             position: fixed;
             top: ${rect.top}px;
             left: ${rect.left}px;
-            width: ${rect.width}px;
+            min-width: ${rect.width}px;
             height: ${rect.height}px;
+            padding: 0 12px;
             z-index: 100000;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            line-height: 1;
+            color: #fff;
+            white-space: nowrap;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(180deg, #7ec24a 0%, #5ba033 100%);
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
             opacity: ${CONFIG.buttonOpacity};
-            background: ${CONFIG.buttonBackground};
-            border: ${CONFIG.buttonBorder};
             box-sizing: border-box;
         `;
+    }
+
+    // Read the weapon name from the configured slot's aria-label ("Attack with X")
+    function getWeaponName() {
+        const slot = document.getElementById(CONFIG.targetWeaponSlot);
+        const label = slot && slot.getAttribute('aria-label');
+        if (label) {
+            return label.replace(/^Attack with\s*/i, '').trim();
+        }
+        // Fallback to a readable slot name
+        return CONFIG.targetWeaponSlot.replace('weapon_', '');
+    }
+
+    function updateOverlayLabel() {
+        if (!overlayEl) return;
+        overlayEl.textContent = `⚔ ${getWeaponName()}`;
     }
 
     function repositionOverlay() {
@@ -168,6 +199,7 @@
 
                     CONFIG.targetWeaponSlot = slotId;
                     saveConfig();
+                    updateOverlayLabel();
                     debugLog(`Target weapon slot changed to: ${slotId}`);
 
                     // Brief visual feedback (outline avoids layout shift)
