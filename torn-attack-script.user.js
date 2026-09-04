@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.5.1
+// @version      1.5.2
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/loader.php*
@@ -81,7 +81,7 @@
 
     function moveButtonToWeaponSlot(existingButton = null) {
         // Always fresh query for reliability during debugging
-        const button = existingButton || document.querySelector('.torn-btn.btn___RxE8_.silver');
+        const button = existingButton || document.querySelector('.torn-btn.silver');
 
         if (button) {
             debugLog(`Found button, moving to ${CONFIG.targetWeaponSlot}`);
@@ -89,7 +89,7 @@
         } else {
             debugLog('Button not found, waiting for it to appear...');
             // Wait for button to appear
-            waitForElement('.torn-btn.btn___RxE8_.silver', function(foundButton) {
+            waitForElement('.torn-btn.silver', function(foundButton) {
                 debugLog('Button found via waitForElement, moving to slot');
                 moveButtonToSlot(foundButton);
             }, 15000);
@@ -184,7 +184,7 @@
                         setTimeout(() => slot.style.border = '', 300);
 
                         // Restart button placement if button exists (immediate execution)
-                        const existingButton = document.querySelector('.torn-btn.btn___RxE8_.silver');
+                        const existingButton = document.querySelector('.torn-btn.silver');
                         if (existingButton) {
                             debugLog('Repositioning existing button to new slot...');
 
