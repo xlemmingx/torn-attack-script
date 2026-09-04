@@ -1,10 +1,9 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.5.2
+// @version      1.5.3
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
-// @match        https://www.torn.com/loader.php*
 // @match        https://www.torn.com/page.php?sid=attack*
 // @grant        none
 // @run-at       document-end
