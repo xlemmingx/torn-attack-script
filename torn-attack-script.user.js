@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.8.0
+// @version      1.8.1
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -105,13 +105,14 @@
         return null;
     }
 
-    // The fight has ended once Torn shows an outcome title ("You defeated ...",
-    // "You were defeated ...", stalemate, escaped). None of these exist pre-fight.
-    const OUTCOME_RE = /(defeated|stalemate|escaped)/i;
+    // The fight is over once Torn fills the outcome "result" box (e.g. "WON 790",
+    // "LOST ..."). Pre-fight and during the fight these boxes exist but are empty,
+    // so any non-empty result box means the fight has ended (win or loss). This is
+    // stable across both post-fight states (mug/leave/hospitalize and CONTINUE).
     function isFightOver() {
-        const titles = document.querySelectorAll('[class*="title___"]');
-        for (const t of titles) {
-            if (OUTCOME_RE.test(t.textContent || '')) return true;
+        const results = document.querySelectorAll('[class*="result___"]');
+        for (const r of results) {
+            if ((r.textContent || '').trim() !== '') return true;
         }
         return false;
     }
