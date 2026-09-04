@@ -18,8 +18,9 @@ A lightweight Tampermonkey userscript for Torn City that places a single fixed a
 ## ⚡ Usage
 
 ### Basic Usage
-- A button overlay appears over the "Start fight"/"Join fight" button
-- Click it to start the fight, then keep clicking the same spot to attack with your configured weapon
+- Start the fight with Torn's own "Start fight"/"Join fight" button
+- Once the fight is running, an attack button appears in the same spot — keep clicking it to attack with your configured weapon
+- The button hides itself again automatically when the fight is over
 
 ### Configuration
 - **Ctrl+Click** on a weapon slot to set the main weapon (used for the rest of the fight)

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.7.0
+// @version      1.8.0
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -73,23 +73,27 @@
     }
 
     // === SPAM BUTTON ===
-    // Keeps a single fixed overlay button where "Start fight" normally sits.
-    // Each physical click triggers exactly one game action (no auto-attacking):
-    //   - fight not started yet -> click the native Start/Join fight button
-    //   - fight running          -> click the configured weapon slot to attack
-    // This lets the user spam clicks in one spot without moving the mouse.
+    // Shows a single fixed overlay button where "Start fight" sat — but only
+    // while a fight is actually running. The user starts the fight with Torn's
+    // own button, then spams our overlay in the same spot to attack.
+    //   - before fight (Start/Join button visible) -> overlay hidden
+    //   - fight running                            -> overlay visible, clicks attack
+    //   - fight finished (outcome shown)           -> overlay hidden
+    // Each physical click triggers exactly one attack (no auto-attacking).
     let overlayEl = null;
+    // Last known position of the native Start/Join button (where the overlay goes)
+    let lastRect = null;
     // Whether the opener weapon has already been fired in the current fight
     let openerUsed = false;
 
     function setupSpamButton() {
-        waitForElement('.torn-btn.silver', function(startBtn) {
-            debugLog('Start fight button found, creating spam overlay');
-            createOverlay(startBtn);
+        waitForElement('.torn-btn.silver', function() {
+            debugLog('Attack page ready, watching fight state');
+            watchFightState();
         }, 15000);
     }
 
-    // Find the native Start/Join fight button regardless of the volatile build hash
+    // Find the native Start/Join fight button (build-hash independent, text based)
     function findStartButton() {
         const buttons = document.querySelectorAll('.torn-btn');
         for (const btn of buttons) {
@@ -98,29 +102,87 @@
                 return btn;
             }
         }
-        // Fallback: on the attack page "silver" is unique to the start button
-        return document.querySelector('.torn-btn.silver');
+        return null;
     }
 
-    function createOverlay(refEl) {
-        if (!overlayEl) {
-            overlayEl = document.createElement('button');
-            overlayEl.type = 'button';
-            overlayEl.className = 'torn-spam-button';
-            overlayEl.title = 'Attack button (Ctrl+Click a weapon slot to choose the weapon)';
-            overlayEl.addEventListener('click', onSpamClick);
-            document.body.appendChild(overlayEl);
+    // The fight has ended once Torn shows an outcome title ("You defeated ...",
+    // "You were defeated ...", stalemate, escaped). None of these exist pre-fight.
+    const OUTCOME_RE = /(defeated|stalemate|escaped)/i;
+    function isFightOver() {
+        const titles = document.querySelectorAll('[class*="title___"]');
+        for (const t of titles) {
+            if (OUTCOME_RE.test(t.textContent || '')) return true;
         }
-        positionOverlay(refEl);
-        updateOverlayLabel();
-
-        // Keep the overlay aligned while the native button is still around
-        window.addEventListener('resize', repositionOverlay);
-        window.addEventListener('scroll', repositionOverlay, true);
+        return false;
     }
 
-    function positionOverlay(refEl) {
-        const rect = refEl.getBoundingClientRect();
+    // Recompute overlay visibility/position from the current fight state.
+    function updateOverlayVisibility() {
+        const startBtn = findStartButton();
+        if (startBtn) {
+            // Pre-fight: keep our button hidden, remember where to place it later,
+            // and keep the opener armed.
+            lastRect = startBtn.getBoundingClientRect();
+            openerUsed = false;
+            hideOverlay();
+            return;
+        }
+        if (isFightOver()) {
+            hideOverlay();
+            return;
+        }
+        // Fight is running: show the overlay at the remembered spot.
+        showOverlay();
+    }
+
+    // Coalesce bursts of DOM mutations into one update per frame (keeps it cheap
+    // during fight animations without adding any latency to clicks).
+    let updateScheduled = false;
+    function scheduleUpdate() {
+        if (updateScheduled) return;
+        updateScheduled = true;
+        requestAnimationFrame(function() {
+            updateScheduled = false;
+            updateOverlayVisibility();
+        });
+    }
+
+    function watchFightState() {
+        ensureOverlay();
+        updateOverlayVisibility();
+
+        const container = document.querySelector('.content-wrapper') || document.body;
+        const observer = new MutationObserver(scheduleUpdate);
+        observer.observe(container, { childList: true, subtree: true });
+
+        window.addEventListener('resize', scheduleUpdate);
+        window.addEventListener('scroll', scheduleUpdate, true);
+    }
+
+    function ensureOverlay() {
+        if (overlayEl) return;
+        overlayEl = document.createElement('button');
+        overlayEl.type = 'button';
+        overlayEl.className = 'torn-spam-button';
+        overlayEl.title = 'Attack button (Ctrl+Click = main weapon, Shift+Click = opener)';
+        overlayEl.style.display = 'none';
+        overlayEl.addEventListener('click', onSpamClick);
+        document.body.appendChild(overlayEl);
+    }
+
+    function showOverlay() {
+        if (!lastRect) return; // never saw the start button -> nothing to anchor to
+        ensureOverlay();
+        positionOverlay(lastRect);
+        updateOverlayLabel();
+        overlayEl.style.display = 'flex';
+    }
+
+    function hideOverlay() {
+        if (overlayEl) overlayEl.style.display = 'none';
+    }
+
+    function positionOverlay(rect) {
         overlayEl.style.cssText = `
             position: fixed;
             top: ${rect.top}px;
@@ -173,23 +235,9 @@
         overlayEl.textContent = `⚔ ${openerPending ? '1× ' : ''}${getWeaponName(slotId)}`;
     }
 
-    function repositionOverlay() {
-        if (!overlayEl) return;
-        const startBtn = findStartButton();
-        if (startBtn) positionOverlay(startBtn);
-    }
-
     function onSpamClick() {
-        // One physical click == one game action (ToS-friendly, no automation)
-        const startBtn = findStartButton();
-        if (startBtn && document.body.contains(startBtn)) {
-            debugLog('Overlay click -> Start/Join fight');
-            openerUsed = false; // new fight: arm the opener again
-            startBtn.click();
-            updateOverlayLabel();
-            return;
-        }
-
+        // The overlay is only visible while a fight is running, so a click here
+        // is always an attack. One physical click == one attack (no automation).
         const slotId = nextWeaponSlot();
         const weapon = document.getElementById(slotId);
         if (weapon) {
