@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Script
 // @namespace    http://tampermonkey.net/
-// @version      1.8.2
+// @version      1.8.3
 // @description  Attack enhancements for Torn City
 // @author       xlemmingx [2035104]
 // @match        https://www.torn.com/page.php?sid=attack*
@@ -152,20 +152,22 @@
         ensureOverlay();
         updateOverlayVisibility();
 
-        // Observe the WHOLE document: Torn renders the fight-outcome dialog as a
-        // modal portal on <body>, i.e. outside .content-wrapper. Observing only
-        // the content wrapper misses the fight-end mutation, so the overlay would
-        // never hide. rAF-throttling keeps this cheap despite the broad scope.
+        // Observe .content-wrapper (NOT document.body): our own overlay lives on
+        // <body>, and observing body would let our own textContent/style writes
+        // re-trigger the observer -> feedback loop that saturates the main thread
+        // and eats clicks. The content wrapper never contains our overlay.
+        const container = document.querySelector('.content-wrapper') || document.body;
         const observer = new MutationObserver(scheduleUpdate);
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(container, { childList: true, subtree: true });
 
         window.addEventListener('resize', scheduleUpdate);
         window.addEventListener('scroll', scheduleUpdate, true);
 
-        // Safety net: re-evaluate periodically in case a state change slips past
-        // the observer for any reason. Cheap (two querySelectorAll), off the click
-        // path, so it does not affect click latency.
-        setInterval(updateOverlayVisibility, 500);
+        // The fight-outcome dialog is a modal portal on <body>, outside the
+        // observed container, so the observer never sees the fight end. This
+        // interval re-checks the whole document (location-independent) and hides
+        // the overlay when the fight is over. Cheap and off the click path.
+        setInterval(updateOverlayVisibility, 400);
     }
 
     function ensureOverlay() {
@@ -174,34 +176,13 @@
         overlayEl.type = 'button';
         overlayEl.className = 'torn-spam-button';
         overlayEl.title = 'Attack button (Ctrl+Click = main weapon, Shift+Click = opener)';
-        overlayEl.style.display = 'none';
-        overlayEl.addEventListener('click', onSpamClick);
-        document.body.appendChild(overlayEl);
-    }
-
-    function showOverlay() {
-        if (!lastRect) return; // never saw the start button -> nothing to anchor to
-        ensureOverlay();
-        positionOverlay(lastRect);
-        updateOverlayLabel();
-        overlayEl.style.display = 'flex';
-    }
-
-    function hideOverlay() {
-        if (overlayEl) overlayEl.style.display = 'none';
-    }
-
-    function positionOverlay(rect) {
+        // Static styling set once; position + display are updated dynamically.
         overlayEl.style.cssText = `
             position: fixed;
-            top: ${rect.top}px;
-            left: ${rect.left}px;
-            min-width: ${rect.width}px;
-            height: ${rect.height}px;
+            display: none;
             padding: 0 12px;
             z-index: 100000;
             cursor: pointer;
-            display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
@@ -218,6 +199,36 @@
             opacity: ${CONFIG.buttonOpacity};
             box-sizing: border-box;
         `;
+        overlayEl.addEventListener('click', onSpamClick);
+        document.body.appendChild(overlayEl);
+    }
+
+    // All overlay updates below are idempotent: they only touch the DOM when a
+    // value actually changes, so repeated calls (interval/observer) never churn
+    // the button or interfere with clicks.
+    function showOverlay() {
+        if (!lastRect) return; // never saw the start button -> nothing to anchor to
+        ensureOverlay();
+        positionOverlay(lastRect);
+        updateOverlayLabel();
+        if (overlayEl.style.display !== 'flex') overlayEl.style.display = 'flex';
+    }
+
+    function hideOverlay() {
+        if (overlayEl && overlayEl.style.display !== 'none') {
+            overlayEl.style.display = 'none';
+        }
+    }
+
+    function positionOverlay(rect) {
+        setStyle('top', `${rect.top}px`);
+        setStyle('left', `${rect.left}px`);
+        setStyle('minWidth', `${rect.width}px`);
+        setStyle('height', `${rect.height}px`);
+    }
+
+    function setStyle(prop, value) {
+        if (overlayEl.style[prop] !== value) overlayEl.style[prop] = value;
     }
 
     // Read the weapon name from a slot's aria-label ("Attack with X")
@@ -241,7 +252,8 @@
         if (!overlayEl) return;
         const slotId = nextWeaponSlot();
         const openerPending = CONFIG.openerWeaponSlot && !openerUsed;
-        overlayEl.textContent = `⚔ ${openerPending ? '1× ' : ''}${getWeaponName(slotId)}`;
+        const text = `⚔ ${openerPending ? '1× ' : ''}${getWeaponName(slotId)}`;
+        if (overlayEl.textContent !== text) overlayEl.textContent = text;
     }
 
     function onSpamClick() {
